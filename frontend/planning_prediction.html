@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Crop Planning & Prediction</title>
+<style>
+  body {font-family: Arial, sans-serif; margin:0; padding:0; background:#f4f4f4;}
+  header {background:#2e7d32;color:white;padding:20px;text-align:center;}
+  header h1 {margin:0;font-size:24px;}
+  .container {max-width:900px;margin:20px auto;padding:20px;background:#fff;border-radius:8px;box-shadow:0 2px 5px rgba(0,0,0,0.1);}
+  label {display:block;margin:10px 0 5px;}
+  input {padding:10px;margin-bottom:10px;width:100%;border:1px solid #ccc;border-radius:4px;}
+  button.action {background:#2e7d32;color:white;border:none;padding:10px 15px;cursor:pointer;border-radius:4px;}
+  button.action:hover {background:#256428;}
+  canvas{margin-top:20px;}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+<header>
+  <h1>Crop Planning & GRU Prediction</h1>
+</header>
+
+<div class="container">
+  <form id="predictForm">
+    <label for="column">Column to Predict:</label>
+    <input type="text" id="column" placeholder="Quantity_kg, Transport_Cost, Labour_Cost">
+    
+    <label for="weeks">Weeks to Predict:</label>
+    <input type="number" id="weeks" placeholder="e.g., 12">
+
+    <button type="button" class="action" onclick="predictGRU()">Predict</button>
+  </form>
+
+  <canvas id="gruChart" width="800" height="400"></canvas>
+  <div id="predictionText"
+     style="margin-top:20px;
+            padding:15px;
+            background:#f4f4f4;
+            border-radius:6px;
+            font-size:16px;">
+    </div>
+    <div id="resourcePlan"
+     style="margin-top:20px;
+            padding:15px;
+            background:#e8f5e9;
+            border-radius:6px;
+            font-size:16px;">
+</div>
+
+</div>
+
+
+
+<script>
+    function generateResourcePlan(values, column) {
+  let text = "";
+
+  if (column === "Quantity_kg") {
+    const avgQty = values.reduce((a,b)=>a+b,0) / values.length;
+
+    const trucks = Math.ceil(avgQty / 2000);   // medium truck
+    const workers = Math.ceil(avgQty / 400);
+
+    text = `
+      🚚 <b>Vehicle Planning</b><br>
+      Estimated average crop arrival: <b>${avgQty.toFixed(0)} kg</b><br>
+      Recommended vehicles: <b>${trucks} medium truck(s)</b><br><br>
+
+      👷 <b>Labour Planning</b><br>
+      Recommended workers per day: <b>${workers}</b>
+    `;
+  }
+
+  if (column === "Workers_Hired_count") {
+    const avgWorkers = values.reduce((a,b)=>a+b,0) / values.length;
+    text = `
+      👷 <b>Workforce Planning</b><br>
+      Average workers required: <b>${avgWorkers.toFixed(0)}</b><br>
+      Maintain this workforce for upcoming weeks.
+    `;
+  }
+
+  if (column === "Transport_Cost") {
+    const avgCost = values.reduce((a,b)=>a+b,0) / values.length;
+    text = `
+      🚛 <b>Logistics Budget</b><br>
+      Estimated average transport cost: <b>₹${avgCost.toFixed(0)}</b><br>
+      Plan vehicle hiring accordingly.
+    `;
+  }
+
+  document.getElementById("resourcePlan").innerHTML =
+    `<b>📦 Resource Recommendation:</b><br>${text}`;
+}
+
+ function generateUniversalInsight(values, column) {
+  const first = values[0];
+  const last = values[values.length - 1];
+  const diff = last - first;
+
+  let trend = "stable";
+  if (diff > 0) trend = "increasing";
+  if (diff < 0) trend = "decreasing";
+
+  let insight = "";
+
+  switch(column) {
+
+    case "Quantity_kg":
+      if (trend === "increasing") {
+        insight = `
+        📈 Crop arrival is expected to increase.
+        <br>🚚 Plan additional vehicles.
+        <br>📦 Ensure enough storage space.
+        <br>👷 Hire extra workers during peak weeks.
+        `;
+      } else if (trend === "decreasing") {
+        insight = `
+        📉 Crop arrival is expected to decrease.
+        <br>🚚 Fewer vehicles will be sufficient.
+        <br>👷 Reduce temporary labour hiring.
+        `;
+      } else {
+        insight = `
+        ➖ Crop arrival will remain stable.
+        <br>🚚 Maintain current logistics plan.
+        `;
+      }
+      break;
+
+    case "Crop_Buyed_Cost":
+      if (trend === "increasing") {
+        insight = `
+        📈 Crop purchase cost is increasing.
+        <br>💰 Higher working capital required.
+        <br>📊 Review buying price strategy.
+        `;
+      } else if (trend === "decreasing") {
+        insight = `
+        📉 Crop purchase cost is decreasing.
+        <br>💰 Opportunity to improve profit margins.
+        `;
+      } else {
+        insight = `
+        ➖ Crop purchase cost is stable.
+        <br>📊 Current pricing strategy is sufficient.
+        `;
+      }
+      break;
+
+    case "Transport_Cost":
+      if (trend === "increasing") {
+        insight = `
+        📈 Transport cost is increasing.
+        <br>🚚 Additional vehicles may be required.
+        <br>💰 Allocate higher logistics budget.
+        `;
+      } else if (trend === "decreasing") {
+        insight = `
+        📉 Transport cost is decreasing.
+        <br>🚚 Fewer vehicles needed.
+        <br>💰 Optimize logistics expenses.
+        `;
+      } else {
+        insight = `
+        ➖ Transport cost remains stable.
+        <br>🚚 Maintain current transport plan.
+        `;
+      }
+      break;
+
+    case "Workers_Hired_count":
+      if (trend === "increasing") {
+        insight = `
+        📈 Workforce requirement is increasing.
+        <br>👷 Plan to hire additional workers.
+        <br>📅 Schedule shifts in advance.
+        `;
+      } else if (trend === "decreasing") {
+        insight = `
+        📉 Workforce requirement is decreasing.
+        <br>👷 Reduce temporary labour.
+        `;
+      } else {
+        insight = `
+        ➖ Workforce requirement remains stable.
+        <br>👷 Current staffing is sufficient.
+        `;
+      }
+      break;
+
+    case "Labour_Cost":
+      if (trend === "increasing") {
+        insight = `
+        📈 Labour cost is increasing.
+        <br>💰 Increase labour budget.
+        <br>📊 Optimize worker allocation.
+        `;
+      } else if (trend === "decreasing") {
+        insight = `
+        📉 Labour cost is decreasing.
+        <br>💰 Improved cost efficiency expected.
+        `;
+      } else {
+        insight = `
+        ➖ Labour cost remains stable.
+        <br>💰 No budget changes required.
+        `;
+      }
+      break;
+
+    default:
+      insight = "No insight available for selected column.";
+  }
+
+  document.getElementById("predictionText").innerHTML =
+    `<b>📋 Planning Insight:</b><br>${insight}`;
+}
+
+
+
+function predictGRU(){
+  const column = document.getElementById('column').value;
+  const weeks = document.getElementById('weeks').value;
+
+  if(!column || !weeks){
+    alert("Please enter both column and weeks");
+    return;
+  }
+
+  fetch(`http://localhost:3000/api/predict_gru?column=${column}&days=${weeks}`)
+    .then(res=>res.json())
+    .then(data=>{
+      if(data.error){ alert(data.error); return; }
+
+      generateUniversalInsight(data.future_predicted, column);
+      generateResourcePlan(data.future_predicted, column);
+
+
+      const ctx = document.getElementById('gruChart').getContext('2d');
+
+      // Destroy previous chart if exists
+      if(window.gruChartInstance) window.gruChartInstance.destroy();
+
+      window.gruChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: [...Array(data.future_predicted.length).keys()].map(i=>'Week+'+(i+1)),
+          datasets: [
+            {
+              label: 'Future Prediction',
+              data: data.future_predicted,
+              borderColor: 'green',
+              fill: false
+            }
+          ]
+        },
+        options: {
+          responsive:true,
+          plugins:{legend:{display:true}},
+          scales:{y:{beginAtZero:false}}
+        }
+      });
+    })
+    .catch(err=>console.error(err));
+}
+</script>
+</body>
+</html>

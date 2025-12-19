@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Smart Groundnut Mill System</title>
+<style>
+  body {font-family: Arial; margin:0; padding:0; background:#f4f4f4;}
+  header {background:#2e7d32;color:white;padding:20px;text-align:center;}
+  header h1 {margin:0;font-size:24px;}
+  nav {display:flex;justify-content:center;flex-wrap:wrap;margin:15px 0;}
+  nav button {margin:5px;padding:10px 15px;background:#4caf50;color:white;border:none;border-radius:4px;cursor:pointer;}
+  nav button:hover {background:#388e3c;}
+  .container {max-width:1000px;margin:0 auto;padding:20px;}
+  .section {display:none;}
+  .section.active {display:block;}
+  .card {background:white;padding:15px;margin-bottom:15px;border-radius:5px;box-shadow:0 2px 5px rgba(0,0,0,0.1);}
+  .card h3 {margin-top:0;color:#2e7d32;}
+  input, select, textarea {width:100%;padding:8px;margin:5px 0 10px 0;border-radius:4px;border:1px solid #ccc;}
+  button.action {background:#2e7d32;color:white;border:none;padding:10px 15px;cursor:pointer;border-radius:4px;}
+  button.action:hover {background:#256428;}
+  table {width:100%;border-collapse:collapse;margin-top:10px;}
+  table, th, td {border:1px solid #ccc;}
+  th, td {padding:8px;text-align:center;}
+  .message {color:green;margin:10px 0;}
+  @media(max-width:600px){nav{flex-direction:column;}nav button{margin:5px 0;}}
+</style>
+</head>
+<body>
+
+<header><h1>Smart Groundnut Mill System</h1></header>
+
+<nav>
+  <button onclick="showSection('farmer')">Farmer Dashboard</button>
+  <button onclick="showSection('mill')">Mill Owner Dashboard</button>
+</nav>
+
+<div class="container">
+
+  <!-- Farmer Dashboard -->
+  <div id="farmer" class="section active">
+    <h2>Farmer Dashboard</h2>
+
+    <div class="card">
+      <h3>Buy Products</h3>
+      <label>Product</label>
+      <select id="farmerProduct"></select>
+      <label>Quantity (kg)</label>
+      <input type="number" id="farmerQty" placeholder="Enter quantity">
+      <button class="action" onclick="farmerBuy()">Buy</button>
+      <p class="message" id="farmerMessage"></p>
+    </div>
+
+    <div class="card">
+  <h3>Offer Your Crop</h3>
+  <label>Quantity (kg)</label>
+  <input type="number" id="cropQty" placeholder="Enter quantity to sell">
+
+  <label>Harvest Date</label>
+  <input type="date" id="harvestDate">
+
+  <label>Expected Price (₹/kg)</label>
+  <input type="number" id="expectedPrice" placeholder="Optional">
+
+  <label>Contact Number</label>
+  <input type="text" id="contact" placeholder="Phone number">
+
+  <label>Address</label>
+  <textarea id="cropAddress" placeholder="Enter your village / address"></textarea>
+
+  <button class="action" onclick="offerCrop()">Send Offer</button>
+  <p class="message" id="offerMessage"></p>
+</div>
+
+  </div>
+
+  <!-- Mill Owner Dashboard -->
+  <div id="mill" class="section">
+    <h2>Mill Owner Dashboard</h2>
+<button class="action" onclick="window.location.href='planning_prediction.html'">
+  Planning & Prediction
+</button>
+
+    <div class="card">
+      <h3>Update Stock</h3>
+      <label>Product</label>
+      <select id="stockProduct"></select>
+      <label>Quantity (kg)</label>
+      <input type="number" id="stockQty" placeholder="Enter quantity to add/update">
+      <button class="action" onclick="updateStock()">Update Stock</button>
+      <p class="message" id="stockMessage"></p>
+    </div>
+
+    <div class="card">
+      <h3>Crop Offers from Farmers</h3>
+      <table id="offersTable">
+        <tr>
+          <th>Farmer</th><th>Quantity</th><th>Harvest Date</th><th>Address</th><th>Status</th><th>Action</th>
+        </tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <h3>Delivery & Profit</h3>
+      <table id="deliveryTable">
+        <tr>
+          <th>Product</th><th>Quantity</th><th>Cost (₹)</th><th>Transport (₹)</th><th>Labour (₹)</th><th>Total Profit (₹)</th>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const API = "http://localhost:3000/api";
+let products = [];
+
+// Show section
+function showSection(id){
+  document.querySelectorAll('.section').forEach(sec => sec.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// Load products
+function loadProducts(){
+  fetch(`${API}/products`)
+    .then(res=>res.json())
+    .then(data=>{
+      products = data;
+      const farmerSelect = document.getElementById('farmerProduct');
+      const stockSelect = document.getElementById('stockProduct');
+      farmerSelect.innerHTML = "";
+      stockSelect.innerHTML = "";
+      data.forEach(p=>{
+        const option1 = document.createElement("option");
+        option1.value = p.product_id; option1.textContent = `${p.name} (₹${p.price}/kg, ${p.stock_qty}kg available)`;
+        farmerSelect.appendChild(option1);
+
+        const option2 = document.createElement("option");
+        option2.value = p.product_id; option2.textContent = p.name;
+        stockSelect.appendChild(option2);
+      });
+    });
+}
+
+// Farmer buys product
+function farmerBuy(){
+  const product_id = parseInt(document.getElementById('farmerProduct').value);
+  const qty = parseInt(document.getElementById('farmerQty').value);
+  const messageEl = document.getElementById('farmerMessage');
+  fetch(`${API}/products/buy`, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({product_id, qty})
+  }).then(res=>res.json())
+    .then(data=>{
+      messageEl.textContent=data.message || data.error;
+      loadProducts();
+      loadDeliveries();
+    }).catch(e=>console.error(e));
+}
+
+// Farmer offers crop
+function offerCrop(){
+  const quantity = parseInt(document.getElementById('cropQty').value);
+  const address = document.getElementById('cropAddress').value;
+  const harvest_date = document.getElementById('harvestDate').value;
+  const contact = document.getElementById('contact').value;
+  const expected_price = document.getElementById('expectedPrice').value;
+
+  const messageEl = document.getElementById('offerMessage');
+  const farmer_id = 1; // demo farmer
+
+  if(!quantity || !address || !harvest_date || !contact){
+    messageEl.textContent = "Please fill all required fields";
+    return;
+  }
+
+  fetch(`${API}/crop_offer`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      farmer_id,
+      quantity,
+      address,
+      harvest_date,
+      contact,
+      expected_price
+    })
+  })
+  .then(res => res.json())
+  .then(data => {
+    messageEl.textContent = data.message;
+    loadCropOffers();
+  })
+  .catch(err => console.error(err));
+}
+
+// Mill owner updates stock
+function updateStock(){
+  const product_id = parseInt(document.getElementById('stockProduct').value);
+  const qty = parseInt(document.getElementById('stockQty').value);
+  const messageEl = document.getElementById('stockMessage');
+
+  fetch(`${API}/products/update`,{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({product_id, qty})
+  }).then(res=>res.json())
+    .then(data=>{messageEl.textContent=data.message; loadProducts();})
+    .catch(e=>console.error(e));
+}
+
+// Load crop offers
+function loadCropOffers(){
+  fetch(`${API}/crop_offer`)
+    .then(res=>res.json())
+    .then(data=>{
+      const table = document.getElementById('offersTable');
+      table.innerHTML=`<tr><th>Farmer</th><th>Quantity (kg)</th><th>Address</th><th>Status</th><th>Action</th></tr>`;
+      data.forEach(offer=>{
+        const row = table.insertRow();
+        row.insertCell(0).textContent = offer.farmer;
+        row.insertCell(1).textContent = offer.quantity + " kg";
+        row.insertCell(2).textContent = offer.harvest_date || "-";
+        row.insertCell(3).textContent = offer.address;
+        row.insertCell(4).textContent = offer.status;
+
+        const actionCell = row.insertCell(4);
+        if(offer.status==="Pending"){
+          const buyBtn = document.createElement('button');
+          buyBtn.textContent="Buy"; buyBtn.className="action";
+          buyBtn.onclick=()=>handleOffer(offer.offer_id,'Bought');
+          const rejectBtn = document.createElement('button');
+          rejectBtn.textContent="Reject"; rejectBtn.className="action"; rejectBtn.style.marginLeft="5px";
+          rejectBtn.onclick=()=>handleOffer(offer.offer_id,'Rejected');
+          actionCell.appendChild(buyBtn);
+          actionCell.appendChild(rejectBtn);
+        } else { actionCell.textContent="--"; }
+      });
+    });
+}
+
+// Handle crop offer action
+function handleOffer(offer_id, action){
+  fetch(`${API}/crop_offer/action`,{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({offer_id, action})
+  }).then(res=>res.json())
+    .then(()=>{loadCropOffers(); loadDeliveries();})
+    .catch(e=>console.error(e));
+}
+
+// Load deliveries/profit
+function loadDeliveries(){
+  fetch(`${API}/deliveries`)
+    .then(res=>res.json())
+    .then(data=>{
+      const table = document.getElementById('deliveryTable');
+      table.innerHTML=`<tr><th>Product</th><th>Quantity</th><th>Cost (₹)</th><th>Transport (₹)</th><th>Labour (₹)</th><th>Total Profit (₹)</th></tr>`;
+      data.forEach(d=>{
+        const row = table.insertRow();
+        row.insertCell(0).textContent=d.product;
+        row.insertCell(1).textContent=d.quantity;
+        row.insertCell(2).textContent=d.cost;
+        row.insertCell(3).textContent=d.transport_cost;
+        row.insertCell(4).textContent=d.labour_cost;
+        row.insertCell(5).textContent=d.total_profit;
+      });
+    });
+}
+
+// Initial load
+loadProducts(); loadCropOffers(); loadDeliveries();
+</script>
+
+</body>
+</html>
