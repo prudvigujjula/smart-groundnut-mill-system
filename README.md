@@ -78,21 +78,21 @@ The system enables:
 ---
 
 ## Project Structure
-smart-groundnut-mill-system/
+smart-groundnut-mill-system/<br>
+│<br>
+├── frontend/<br>
+│ ├── index.html<br>
+│ └── planning_prediction.html<br>
+│<br>
+├── backend/<br>
+│ ├── server.js<br>
+│ ├── predict.py<br>
+│ ├── weekly_crop_data.csv<br>
+│ ├── package.json<br>
+│ └── package-lock.json<br>
+| └── .gitignore<br>
 │
-├── frontend/
-│ ├── index.html
-│ └── planning_prediction.html
-│
-├── backend/
-│ ├── server.js
-│ ├── predict.py
-│ ├── weekly_crop_data.csv
-│ ├── package.json
-│ └── package-lock.json
-| └── .gitignore
-│
-└── README.md
+└── README.md<br>
 
 
 ---
